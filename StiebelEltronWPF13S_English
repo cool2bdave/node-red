@@ -1,0 +1,255 @@
+[
+    {
+        "id": "c95b0932.263088",
+        "type": "tab",
+        "label": "Stiebel Eltron WPF13S",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "f1d6ce47.cfb17",
+        "type": "function",
+        "z": "c95b0932.263088",
+        "name": "",
+        "func": "var i;\nvar stripped;\nvar values;\nvar heading = '';\n\nfor (i = 0; i < msg.payload.length; i++) {\n    stripped = msg.payload[i].trim().replace('°C','\\ncelcius\\ntemperature').replace('bar','\\nbar\\npressure').replace('l/min','\\nlitre_per_min\\nflow_rate').replace('kWh','\\nkWh\\nenergy').replace('MWh','\\nMWh\\nenergy').replace(/(?<=\\d)h/gm,'\\nhours\\nduration');\n    values = stripped.split(/[\\n]+/)\n    //node.warn([\"values=\",values]);\n    if (values.length == 4) { \n        values[0] = heading + ' ' + values[0].trim();\n        values[1] = values[1].trim().replace(',','.');\n        values[2] = values[2].trim();\n        values[3] = values[3].trim();\n        msg.payload[i] = values;\n    } else if (values.length == 2) {\n        values[0] = values[0].trim();\n        values[1] = values[1].trim();\n        values[2] = \"starts\";\n        values[3] = \"starts\";\n        msg.payload[i] = values;\n    } else {\n        heading = values[0].trim();\n        msg.payload.splice(i, 1);\n        i--;\n    }\n}\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 820,
+        "y": 780,
+        "wires": [
+            [
+                "3b974300.9c7bce"
+            ]
+        ]
+    },
+    {
+        "id": "ead2860a.3ab3b8",
+        "type": "debug",
+        "z": "c95b0932.263088",
+        "name": "Complete Message",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1150,
+        "y": 720,
+        "wires": []
+    },
+    {
+        "id": "aea9ef6b.acab4",
+        "type": "html",
+        "z": "c95b0932.263088",
+        "name": "",
+        "property": "payload",
+        "outproperty": "payload",
+        "tag": "tr",
+        "ret": "text",
+        "as": "single",
+        "x": 670,
+        "y": 780,
+        "wires": [
+            [
+                "f1d6ce47.cfb17"
+            ]
+        ]
+    },
+    {
+        "id": "3b974300.9c7bce",
+        "type": "split",
+        "z": "c95b0932.263088",
+        "name": "",
+        "splt": "\\n",
+        "spltType": "str",
+        "arraySplt": 1,
+        "arraySpltType": "len",
+        "stream": false,
+        "addname": "",
+        "x": 970,
+        "y": 780,
+        "wires": [
+            [
+                "11ab6d0a.1968a3"
+            ]
+        ]
+    },
+    {
+        "id": "11ab6d0a.1968a3",
+        "type": "change",
+        "z": "c95b0932.263088",
+        "name": "Format for InfluxDB",
+        "rules": [
+            {
+                "t": "move",
+                "p": "payload[3]",
+                "pt": "msg",
+                "to": "measurement",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "[\t   {\t       $string(msg.payload[2]): $number(msg.payload[1])\t   },\t   {\t       \"location\": $string($lowercase(msg.payload[0]))\t   }\t]",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1150,
+        "y": 780,
+        "wires": [
+            [
+                "ead2860a.3ab3b8",
+                "de322fe8.3df7d"
+            ]
+        ]
+    },
+    {
+        "id": "de322fe8.3df7d",
+        "type": "influxdb out",
+        "z": "c95b0932.263088",
+        "influxdb": "d753f9e4.930f78",
+        "name": "Store to InfluxDB",
+        "measurement": "",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "",
+        "retentionPolicyV18Flux": "",
+        "org": "",
+        "bucket": "",
+        "x": 1390,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "7d783966.44c0b8",
+        "type": "http request",
+        "z": "c95b0932.263088",
+        "name": "Get INFO SYSTEM",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://192.168.1.72/?s=1,0",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 470,
+        "y": 700,
+        "wires": [
+            [
+                "bb6bc442.7efd88",
+                "aea9ef6b.acab4"
+            ]
+        ]
+    },
+    {
+        "id": "e70e8488.a278e8",
+        "type": "inject",
+        "z": "c95b0932.263088",
+        "name": "Make request",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "60",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "str",
+        "x": 240,
+        "y": 740,
+        "wires": [
+            [
+                "7d783966.44c0b8",
+                "b8be56cd.8f2578"
+            ]
+        ]
+    },
+    {
+        "id": "bb6bc442.7efd88",
+        "type": "debug",
+        "z": "c95b0932.263088",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 460,
+        "y": 640,
+        "wires": []
+    },
+    {
+        "id": "7d0c1f54.ef3a",
+        "type": "http request",
+        "z": "c95b0932.263088",
+        "name": "Get INFO HEAT PUMP",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://192.168.1.72/?s=1,2",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 490,
+        "y": 840,
+        "wires": [
+            [
+                "aea9ef6b.acab4"
+            ]
+        ]
+    },
+    {
+        "id": "b8be56cd.8f2578",
+        "type": "stoptimer",
+        "z": "c95b0932.263088",
+        "duration": "2",
+        "units": "Second",
+        "payloadtype": "num",
+        "payloadval": "0",
+        "name": "",
+        "x": 460,
+        "y": 780,
+        "wires": [
+            [
+                "7d0c1f54.ef3a"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "d753f9e4.930f78",
+        "type": "influxdb",
+        "hostname": "localhost",
+        "port": "8086",
+        "protocol": "http",
+        "database": "Node-RED_ServiceWelt",
+        "name": "",
+        "usetls": false,
+        "tls": "",
+        "influxdbVersion": "1.x",
+        "url": "",
+        "rejectUnauthorized": false
+    }
+]
